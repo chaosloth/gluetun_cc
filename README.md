@@ -42,5 +42,5 @@ Copy the `custom_components/gluetun_cc/` directory into your HA `config/custom_c
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [LICENCE.md](LICENCE.md) for details.
+This project is licensed under the Apache License 2.0. See [LICENCE](LICENCE) for details.
 
