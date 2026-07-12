@@ -39,3 +39,8 @@ Copy the `custom_components/gluetun_cc/` directory into your HA `config/custom_c
 ## Acknowledgments
 
 - Thanks to **qdm12** for the Gluetun project.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENCE.md](LICENCE.md) for details.
+
