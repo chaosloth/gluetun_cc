@@ -14,7 +14,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     instance_name = entry.data.get("instance_name", "gluetun")
     base_url = entry.data.get("base_url", "http://localhost:8111")
 
-    status_url = urljoin(base_url, "/v1/openvpn/status")
+    status_url = urljoin(base_url, "/v1/vpn/status")
     public_ip_url = urljoin(base_url, "/v1/publicip/ip")
 
     status_coordinator = GluetunStatusCoordinator(hass, status_url, instance_name)
