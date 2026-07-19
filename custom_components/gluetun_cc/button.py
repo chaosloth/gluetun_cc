@@ -31,10 +31,33 @@ class GluetunRefreshButton(ButtonEntity):
         self._attr_name = f"Gluetun {display_name} Refresh IP"
         self._attr_unique_id = f"gluetun_{display_name}_refresh_ip"
         self._attr_icon = "mdi:refresh"
+        self._attr_state = self._get_public_ip()
+
+    def _get_public_ip(self):
+        data = self.coordinator.data
+        if isinstance(data, dict):
+            ip = data.get("public_ip")
+            if ip:
+                return ip
+        return None
 
     async def async_press(self) -> None:
         _LOGGER.info("Manual IP refresh triggered for %s", self.instance_name)
         await self.coordinator.async_request_refresh()
+
+    async def async_added_to_hass(self):
+        self._update_state()
+
+        def _on_coordinator_update():
+            self._update_state()
+            self.async_write_ha_state()
+
+        self.async_on_remove(
+            self.coordinator.async_add_listener(_on_coordinator_update)
+        )
+
+    def _update_state(self):
+        self._attr_state = self._get_public_ip()
 
     @property
     def available(self):
