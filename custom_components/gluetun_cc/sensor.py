@@ -8,7 +8,7 @@ import logging
 import json
 from urllib.parse import urljoin
 
-from .const import CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
+from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +26,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     await status_coordinator.async_refresh()
     await public_ip_coordinator.async_refresh()
+
+    hass.data[DOMAIN][entry.entry_id]["status_coordinator"] = status_coordinator
 
     async_add_entities([
         GluetunStatusSensor(status_coordinator, instance_name),

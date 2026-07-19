@@ -4,4 +4,4 @@ CONF_INSTANCE_NAME = "instance_name"
 CONF_BASE_URL = "base_url"
 CONF_API_KEY = "api_key"
 
-PLATFORMS = ["sensor", "device_tracker"]
+PLATFORMS = ["sensor", "device_tracker", "switch"]
