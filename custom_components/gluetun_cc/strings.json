@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "instance_name": "Instance Name",
+          "base_url": "Base URL",
+          "api_key": "API Key (optional)"
+        },
+        "description": "Enter your Gluetun HTTP Control Server details."
+      }
+    }
+  }
+}

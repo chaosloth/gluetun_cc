@@ -8,17 +8,21 @@ import logging
 import json
 from urllib.parse import urljoin
 
+from .const import CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
+
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    instance_name = entry.data.get("instance_name", "gluetun")
-    base_url = entry.data.get("base_url", "http://localhost:8111")
+    instance_name = entry.data.get(CONF_INSTANCE_NAME, "gluetun")
+    base_url = entry.data.get(CONF_BASE_URL, "http://localhost:8111")
+    api_key = entry.data.get(CONF_API_KEY, "")
 
     status_url = urljoin(base_url, "/v1/vpn/status")
     public_ip_url = urljoin(base_url, "/v1/publicip/ip")
 
-    status_coordinator = GluetunStatusCoordinator(hass, status_url, instance_name)
-    public_ip_coordinator = GluetunPublicIPCoordinator(hass, public_ip_url, instance_name)
+    status_coordinator = GluetunStatusCoordinator(hass, status_url, instance_name, api_key)
+    public_ip_coordinator = GluetunPublicIPCoordinator(hass, public_ip_url, instance_name, api_key)
 
     await status_coordinator.async_refresh()
     await public_ip_coordinator.async_refresh()
@@ -35,10 +39,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         GluetunPublicIPSensor(public_ip_coordinator, "timezone", instance_name),
     ])
 
+
 class GluetunStatusCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, url, instance_name="gluetun"):
+    def __init__(self, hass, url, instance_name="gluetun", api_key=""):
         self.url = url
         self.instance_name = instance_name
+        self.api_key = api_key
         super().__init__(
             hass,
             _LOGGER,
@@ -47,8 +53,11 @@ class GluetunStatusCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
         async with aiohttp.ClientSession() as session:
-            async with session.get(self.url) as response:
+            async with session.get(self.url, headers=headers) as response:
                 if response.status != 200:
                     raise UpdateFailed(f"Error fetching status: {response.status}")
                 text = await response.text()
@@ -58,10 +67,12 @@ class GluetunStatusCoordinator(DataUpdateCoordinator):
                     raise UpdateFailed("Invalid JSON response")
                 return data
 
+
 class GluetunPublicIPCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, url, instance_name="gluetun"):
+    def __init__(self, hass, url, instance_name="gluetun", api_key=""):
         self.url = url
         self.instance_name = instance_name
+        self.api_key = api_key
         super().__init__(
             hass,
             _LOGGER,
@@ -70,8 +81,11 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
         async with aiohttp.ClientSession() as session:
-            async with session.get(self.url) as response:
+            async with session.get(self.url, headers=headers) as response:
                 if response.status != 200:
                     raise UpdateFailed(f"Error fetching public IP: {response.status}")
                 text = await response.text()
@@ -80,6 +94,7 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
                 except json.JSONDecodeError:
                     raise UpdateFailed("Invalid JSON response")
                 return data
+
 
 class GluetunStatusSensor(SensorEntity):
     def __init__(self, coordinator, instance_name="gluetun"):
@@ -107,6 +122,7 @@ class GluetunStatusSensor(SensorEntity):
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
         )
+
 
 class GluetunPublicIPSensor(SensorEntity):
     def __init__(self, coordinator, key, instance_name="gluetun"):
