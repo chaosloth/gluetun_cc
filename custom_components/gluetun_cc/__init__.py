@@ -18,4 +18,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN].pop(entry.entry_id, None)
-    return await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+    unload_ok = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+    unload_ok = unload_ok and await hass.config_entries.async_forward_entry_unload(entry, "device_tracker")
+    return unload_ok
