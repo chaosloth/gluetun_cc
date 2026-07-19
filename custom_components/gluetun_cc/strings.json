@@ -6,7 +6,10 @@
           "instance_name": "Instance Name",
           "base_url": "Base URL",
           "api_key": "API Key (optional)",
-          "tunnel_name": "Tunnel Name (optional)"
+          "tunnel_name": "Tunnel Name (optional)",
+          "scan_interval": "Status Poll Interval (seconds)",
+          "ip_update_interval": "IP Update Interval (seconds)",
+          "ip_check_delay": "IP Check Delay After State Change (seconds)"
         },
         "description": "Enter your Gluetun HTTP Control Server details."
       },
@@ -14,7 +17,10 @@
         "data": {
           "base_url": "Base URL",
           "api_key": "API Key (optional)",
-          "tunnel_name": "Tunnel Name (optional)"
+          "tunnel_name": "Tunnel Name (optional)",
+          "scan_interval": "Status Poll Interval (seconds)",
+          "ip_update_interval": "IP Update Interval (seconds)",
+          "ip_check_delay": "IP Check Delay After State Change (seconds)"
         },
         "description": "Update your Gluetun HTTP Control Server connection details."
       }

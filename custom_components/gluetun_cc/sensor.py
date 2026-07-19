@@ -1,14 +1,27 @@
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from datetime import timedelta
 import aiohttp
 import logging
 import json
 from urllib.parse import urljoin
 
-from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY, CONF_TUNNEL_NAME
+from .const import (
+    DOMAIN,
+    CONF_INSTANCE_NAME,
+    CONF_BASE_URL,
+    CONF_API_KEY,
+    CONF_TUNNEL_NAME,
+    CONF_SCAN_INTERVAL,
+    CONF_IP_UPDATE_INTERVAL,
+    CONF_IP_CHECK_DELAY,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_IP_UPDATE_INTERVAL,
+    DEFAULT_IP_CHECK_DELAY,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,17 +32,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     api_key = entry.data.get(CONF_API_KEY, "")
     tunnel_name = entry.data.get(CONF_TUNNEL_NAME, "")
     display_name = tunnel_name if tunnel_name else instance_name
+    scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    ip_update_interval = entry.data.get(CONF_IP_UPDATE_INTERVAL, DEFAULT_IP_UPDATE_INTERVAL)
+    ip_check_delay = entry.data.get(CONF_IP_CHECK_DELAY, DEFAULT_IP_CHECK_DELAY)
 
     status_url = urljoin(base_url, "/v1/vpn/status")
     public_ip_url = urljoin(base_url, "/v1/publicip/ip")
 
-    status_coordinator = GluetunStatusCoordinator(hass, status_url, instance_name, api_key)
-    public_ip_coordinator = GluetunPublicIPCoordinator(hass, public_ip_url, instance_name, api_key)
+    status_coordinator = GluetunStatusCoordinator(
+        hass, status_url, instance_name, api_key, scan_interval
+    )
+    public_ip_coordinator = GluetunPublicIPCoordinator(
+        hass, public_ip_url, instance_name, api_key, ip_update_interval
+    )
 
     hass.data[DOMAIN][entry.entry_id]["status_coordinator"] = status_coordinator
+    hass.data[DOMAIN][entry.entry_id]["public_ip_coordinator"] = public_ip_coordinator
 
     await status_coordinator.async_refresh()
     await public_ip_coordinator.async_refresh()
+
+    _setup_status_listener(hass, status_coordinator, public_ip_coordinator, ip_check_delay)
 
     async_add_entities([
         GluetunStatusSensor(status_coordinator, display_name),
@@ -44,16 +67,55 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     ])
 
 
+@callback
+def _setup_status_listener(hass, status_coordinator, public_ip_coordinator, ip_check_delay):
+    cancel_handle = None
+
+    @callback
+    def _on_status_update():
+        nonlocal cancel_handle
+        new_status = None
+        data = status_coordinator.data
+        if isinstance(data, dict):
+            new_status = data.get("status")
+
+        previous_status = status_coordinator.previous_status
+        status_coordinator.previous_status = new_status
+
+        if previous_status is not None and new_status != previous_status:
+            _LOGGER.info(
+                "VPN status changed from %s to %s, scheduling IP refresh in %ds",
+                previous_status, new_status, ip_check_delay,
+            )
+            if cancel_handle is not None:
+                cancel_handle()
+            if ip_check_delay == 0:
+                hass.async_create_task(public_ip_coordinator.async_request_refresh())
+                cancel_handle = None
+            else:
+                cancel_handle = async_call_later(
+                    hass,
+                    ip_check_delay,
+                    lambda _now: hass.async_create_task(
+                        public_ip_coordinator.async_request_refresh()
+                    ),
+                )
+
+    status_coordinator.async_add_listener(_on_status_update)
+
+
 class GluetunStatusCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, url, instance_name="gluetun", api_key=""):
+    def __init__(self, hass, url, instance_name="gluetun", api_key="",
+                 scan_interval=DEFAULT_SCAN_INTERVAL):
         self.url = url
         self.instance_name = instance_name
         self.api_key = api_key
+        self.previous_status = None
         super().__init__(
             hass,
             _LOGGER,
             name=f"gluetun_status_{instance_name}",
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(seconds=scan_interval),
         )
 
     async def _async_update_data(self):
@@ -73,7 +135,8 @@ class GluetunStatusCoordinator(DataUpdateCoordinator):
 
 
 class GluetunPublicIPCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, url, instance_name="gluetun", api_key=""):
+    def __init__(self, hass, url, instance_name="gluetun", api_key="",
+                 ip_update_interval=DEFAULT_IP_UPDATE_INTERVAL):
         self.url = url
         self.instance_name = instance_name
         self.api_key = api_key
@@ -81,7 +144,7 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=f"gluetun_public_ip_{instance_name}",
-            update_interval=timedelta(seconds=300),
+            update_interval=timedelta(seconds=ip_update_interval),
         )
 
     async def _async_update_data(self):
