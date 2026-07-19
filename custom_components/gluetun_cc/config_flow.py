@@ -1,7 +1,7 @@
 from homeassistant import config_entries
 import voluptuous as vol
 
-from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
+from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY, CONF_TUNNEL_NAME
 
 
 class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -17,8 +17,11 @@ class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(instance_name)
             self._abort_if_unique_id_configured()
 
+            tunnel_name = user_input.get(CONF_TUNNEL_NAME, "")
+            title = tunnel_name if tunnel_name else instance_name
+
             return self.async_create_entry(
-                title=f"Gluetun - {instance_name}",
+                title=f"Gluetun - {title}",
                 data=user_input
             )
 
@@ -28,6 +31,7 @@ class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_INSTANCE_NAME, default="gluetun"): str,
                 vol.Required(CONF_BASE_URL, default="http://localhost:8111"): str,
                 vol.Optional(CONF_API_KEY, default=""): str,
+                vol.Optional(CONF_TUNNEL_NAME, default=""): str,
             }),
             errors=errors
         )
@@ -44,6 +48,7 @@ class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_updates={
                     CONF_BASE_URL: user_input[CONF_BASE_URL],
                     CONF_API_KEY: user_input.get(CONF_API_KEY, ""),
+                    CONF_TUNNEL_NAME: user_input.get(CONF_TUNNEL_NAME, ""),
                 },
             )
 
@@ -57,6 +62,10 @@ class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_API_KEY,
                     default=reconfigure_entry.data.get(CONF_API_KEY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_TUNNEL_NAME,
+                    default=reconfigure_entry.data.get(CONF_TUNNEL_NAME, ""),
                 ): str,
             }),
         )

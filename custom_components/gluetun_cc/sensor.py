@@ -8,7 +8,7 @@ import logging
 import json
 from urllib.parse import urljoin
 
-from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
+from .const import DOMAIN, CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY, CONF_TUNNEL_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +17,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     instance_name = entry.data.get(CONF_INSTANCE_NAME, "gluetun")
     base_url = entry.data.get(CONF_BASE_URL, "http://localhost:8111")
     api_key = entry.data.get(CONF_API_KEY, "")
+    tunnel_name = entry.data.get(CONF_TUNNEL_NAME, "")
+    display_name = tunnel_name if tunnel_name else instance_name
 
     status_url = urljoin(base_url, "/v1/vpn/status")
     public_ip_url = urljoin(base_url, "/v1/publicip/ip")
@@ -30,15 +32,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     hass.data[DOMAIN][entry.entry_id]["status_coordinator"] = status_coordinator
 
     async_add_entities([
-        GluetunStatusSensor(status_coordinator, instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "public_ip", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "region", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "country", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "city", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "location", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "organization", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "postal_code", instance_name),
-        GluetunPublicIPSensor(public_ip_coordinator, "timezone", instance_name),
+        GluetunStatusSensor(status_coordinator, display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "public_ip", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "region", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "country", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "city", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "location", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "organization", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "postal_code", display_name),
+        GluetunPublicIPSensor(public_ip_coordinator, "timezone", display_name),
     ])
 
 
@@ -99,11 +101,11 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
 
 
 class GluetunStatusSensor(SensorEntity):
-    def __init__(self, coordinator, instance_name="gluetun"):
+    def __init__(self, coordinator, display_name="gluetun"):
         self.coordinator = coordinator
-        self.instance_name = instance_name
-        self._attr_name = f"Gluetun {instance_name} Status"
-        self._attr_unique_id = f"gluetun_{instance_name}_status_sensor"
+        self.instance_name = display_name
+        self._attr_name = f"Gluetun {display_name} Status"
+        self._attr_unique_id = f"gluetun_{display_name}_status_sensor"
 
     @property
     def state(self):
@@ -127,12 +129,12 @@ class GluetunStatusSensor(SensorEntity):
 
 
 class GluetunPublicIPSensor(SensorEntity):
-    def __init__(self, coordinator, key, instance_name="gluetun"):
+    def __init__(self, coordinator, key, display_name="gluetun"):
         self.coordinator = coordinator
         self.key = key
-        self.instance_name = instance_name
-        self._attr_name = f"Gluetun {instance_name} {key.replace('_', ' ').title()}"
-        self._attr_unique_id = f"gluetun_{instance_name}_{key}_sensor"
+        self.instance_name = display_name
+        self._attr_name = f"Gluetun {display_name} {key.replace('_', ' ').title()}"
+        self._attr_unique_id = f"gluetun_{display_name}_{key}_sensor"
 
     @property
     def state(self):

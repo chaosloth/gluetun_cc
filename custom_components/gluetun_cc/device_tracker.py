@@ -8,7 +8,7 @@ import logging
 import json
 from urllib.parse import urljoin
 
-from .const import CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY
+from .const import CONF_INSTANCE_NAME, CONF_BASE_URL, CONF_API_KEY, CONF_TUNNEL_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +17,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     instance_name = entry.data.get(CONF_INSTANCE_NAME, "gluetun")
     base_url = entry.data.get(CONF_BASE_URL, "http://localhost:8111")
     api_key = entry.data.get(CONF_API_KEY, "")
+    tunnel_name = entry.data.get(CONF_TUNNEL_NAME, "")
+    display_name = tunnel_name if tunnel_name else instance_name
 
     public_ip_url = urljoin(base_url, "/v1/publicip/ip")
     coordinator = GluetunPublicIPCoordinator(hass, public_ip_url, instance_name, api_key)
@@ -24,7 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     await coordinator.async_refresh()
 
     async_add_entities([
-        GluetunTrackerEntity(coordinator, instance_name),
+        GluetunTrackerEntity(coordinator, display_name),
     ])
 
 
@@ -57,11 +59,11 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
 
 
 class GluetunTrackerEntity(TrackerEntity):
-    def __init__(self, coordinator, instance_name="gluetun"):
+    def __init__(self, coordinator, display_name="gluetun"):
         self.coordinator = coordinator
-        self.instance_name = instance_name
-        self._attr_name = f"Gluetun {instance_name} VPN Location"
-        self._attr_unique_id = f"gluetun_{instance_name}_tracker"
+        self.instance_name = display_name
+        self._attr_name = f"Gluetun {display_name} VPN Location"
+        self._attr_unique_id = f"gluetun_{display_name}_tracker"
         self._attr_icon = "mdi:vpn"
 
     @property
