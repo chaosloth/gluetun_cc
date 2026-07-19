@@ -26,10 +26,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     status_coordinator = GluetunStatusCoordinator(hass, status_url, instance_name, api_key)
     public_ip_coordinator = GluetunPublicIPCoordinator(hass, public_ip_url, instance_name, api_key)
 
+    hass.data[DOMAIN][entry.entry_id]["status_coordinator"] = status_coordinator
+
     await status_coordinator.async_refresh()
     await public_ip_coordinator.async_refresh()
-
-    hass.data[DOMAIN][entry.entry_id]["status_coordinator"] = status_coordinator
 
     async_add_entities([
         GluetunStatusSensor(status_coordinator, display_name),

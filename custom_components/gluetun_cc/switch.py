@@ -18,6 +18,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     coordinator = hass.data[DOMAIN][entry.entry_id].get("status_coordinator")
 
+    if coordinator is None:
+        _LOGGER.warning("Status coordinator not available for switch, skipping")
+        return
+
     async_add_entities([
         GluetunSwitch(coordinator, display_name, base_url, api_key),
     ])
