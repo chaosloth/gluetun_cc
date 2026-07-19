@@ -31,3 +31,32 @@ class GluetunConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
             errors=errors
         )
+
+    async def async_step_reconfigure(self, user_input=None):
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            await self.async_set_unique_id(reconfigure_entry.unique_id)
+            self._abort_if_unique_id_mismatch()
+
+            return self.async_update_reload_and_abort(
+                reconfigure_entry,
+                data_updates={
+                    CONF_BASE_URL: user_input[CONF_BASE_URL],
+                    CONF_API_KEY: user_input.get(CONF_API_KEY, ""),
+                },
+            )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({
+                vol.Required(
+                    CONF_BASE_URL,
+                    default=reconfigure_entry.data.get(CONF_BASE_URL, "http://localhost:8111"),
+                ): str,
+                vol.Optional(
+                    CONF_API_KEY,
+                    default=reconfigure_entry.data.get(CONF_API_KEY, ""),
+                ): str,
+            }),
+        )
