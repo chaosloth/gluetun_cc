@@ -12,4 +12,4 @@ DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_IP_UPDATE_INTERVAL = 300
 DEFAULT_IP_CHECK_DELAY = 10
 
-PLATFORMS = ["sensor", "device_tracker", "switch"]
+PLATFORMS = ["sensor", "device_tracker", "switch", "button"]
