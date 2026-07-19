@@ -83,6 +83,10 @@ def _setup_status_listener(hass, status_coordinator, public_ip_coordinator, ip_c
         status_coordinator.previous_status = new_status
 
         if previous_status is not None and new_status != previous_status:
+            if new_status == "stopped":
+                _LOGGER.info("VPN stopped, clearing public IP data")
+                public_ip_coordinator.async_set_updated_data(public_ip_coordinator.empty_data())
+
             _LOGGER.info(
                 "VPN status changed from %s to %s, scheduling IP refresh in %ds",
                 previous_status, new_status, ip_check_delay,
@@ -135,6 +139,18 @@ class GluetunStatusCoordinator(DataUpdateCoordinator):
 
 
 class GluetunPublicIPCoordinator(DataUpdateCoordinator):
+    EMPTY_FIELDS = {
+        "public_ip": "",
+        "region": "",
+        "country": "",
+        "city": "",
+        "location": "",
+        "organization": "",
+        "postal_code": "",
+        "timezone": "",
+        "hostname": "",
+    }
+
     def __init__(self, hass, url, instance_name="gluetun", api_key="",
                  ip_update_interval=DEFAULT_IP_UPDATE_INTERVAL):
         self.url = url
@@ -147,20 +163,31 @@ class GluetunPublicIPCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=ip_update_interval),
         )
 
+    def empty_data(self):
+        return dict(self.EMPTY_FIELDS)
+
     async def _async_update_data(self):
         headers = {}
         if self.api_key:
             headers["X-API-Key"] = self.api_key
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.url, headers=headers) as response:
-                if response.status != 200:
-                    raise UpdateFailed(f"Error fetching public IP: {response.status}")
-                text = await response.text()
-                try:
-                    data = json.loads(text)
-                except json.JSONDecodeError:
-                    raise UpdateFailed("Invalid JSON response")
-                return data
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.url, headers=headers) as response:
+                    if response.status != 200:
+                        _LOGGER.warning("Public IP API returned %s, returning empty data", response.status)
+                        return self.empty_data()
+                    text = await response.text()
+                    try:
+                        data = json.loads(text)
+                    except json.JSONDecodeError:
+                        _LOGGER.warning("Invalid JSON from public IP API, returning empty data")
+                        return self.empty_data()
+                    if not data.get("public_ip"):
+                        return self.empty_data()
+                    return data
+        except aiohttp.ClientError as err:
+            _LOGGER.warning("Error fetching public IP: %s, returning empty data", err)
+            return self.empty_data()
 
 
 class GluetunStatusSensor(SensorEntity):
@@ -203,8 +230,11 @@ class GluetunPublicIPSensor(SensorEntity):
     def state(self):
         data = self.coordinator.data
         if isinstance(data, dict):
-            return data.get(self.key, "unknown")
-        return "unknown"
+            value = data.get(self.key)
+            if value:
+                return value
+            return None
+        return None
 
     @property
     def should_poll(self):
